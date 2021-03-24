@@ -13,38 +13,37 @@ class AddBird(DualTransform):
         
         self.frac       = frac
         self.mask_path  = mask_path
-        self.image_size = None
-        self.mask_size  = None
-       
 
     def apply(self, img, **params):
         
-        self.image_size = img.shape[1]
-        self.mask_size  = int(self.image_size*self.frac)
+        self.im_h,self.im_w,_ = img.shape
+        self.mask_h  = int(self.im_h*self.frac)
+        self.mask_w  = int(self.im_w*self.frac)
         
-        mask_base = np.zeros((self.image_size,self.image_size,3))
-        inverted_mask_base = np.ones((self.image_size,self.image_size,3))
-        bird_base = np.ones((self.image_size,self.image_size,3))
-        
-        toss = np.random.randint(1,4)
-        bird_mask = Image.open(self.mask_path + 'mask' + str(toss) + '.png').resize((self.mask_size,self.mask_size)).convert('RGB')
-        bird_image = Image.open(self.mask_path + 'image' + str(toss) + '.png').resize((self.mask_size,self.mask_size)).convert('RGB')
-
-        inverted_bird_mask = ImageOps.invert(bird_mask)
+        mask_base = np.zeros((self.im_h,self.im_w,3))
+        inverted_mask_base = np.ones((self.im_h,self.im_w,3))
+        bird_base = np.ones((self.im_h,self.im_w,3))
         
         left_cor,top_cor,right_cor,bottom_cor = self.get_coordinates()
+        new_a , new_b ,_ = mask_base[left_cor:right_cor,top_cor:bottom_cor,:].shape
+        toss = np.random.randint(1,4)
         
+        bird_mask = Image.open(self.mask_path + 'mask' + str(toss) + '.png').resize((new_b,new_a)).convert('RGB')
+        bird_image = Image.open(self.mask_path + 'image' + str(toss) + '.png').resize((new_b,new_a)).convert('RGB')
+
+        inverted_bird_mask = ImageOps.invert(bird_mask)
+ 
         mask_base[left_cor:right_cor,top_cor:bottom_cor,:] = np.array(bird_mask)/255.0
-        bird_base[left_cor:right_cor,top_cor:bottom_cor,:] = np.array(bird_image)/255.0
+        bird_base[left_cor:right_cor,top_cor:bottom_cor,:] = np.array(bird_image)
         inverted_mask_base[left_cor:right_cor,top_cor:bottom_cor,:] = np.array(inverted_bird_mask)/255.0
         
-        final_img = img*(inverted_mask_base)/255.0 + mask_base*bird_base
+        final_img = img*(inverted_mask_base) + mask_base*bird_base
         
-        return final_img
+        return final_img.astype(np.uint8)
     
     def get_coordinates(self):
-        left_cor = np.random.randint(0,self.image_size-self.mask_size)
-        top_cor  = np.random.randint(0,self.image_size-self.mask_size)
-        right_cor = left_cor + self.mask_size
-        bottom_cor = top_cor + self.mask_size
+        left_cor = np.random.randint(0,self.im_w-self.mask_w )
+        top_cor  = np.random.randint(0,self.im_h-self.mask_h )
+        right_cor = left_cor + self.mask_w
+        bottom_cor = top_cor + self.mask_h
         return left_cor,top_cor,right_cor,bottom_cor
